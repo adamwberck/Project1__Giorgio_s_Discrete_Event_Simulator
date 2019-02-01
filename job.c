@@ -23,10 +23,14 @@ char *type_string(enum Job_Type type){
             return "CPU_Finish";
         case Disk1_Arrival:
             return "Disk1_Arrival";
+        case Disk1_Begin:
+            return "Disk1_Begin";
         case Disk1_Finish:
             return "Disk1_Finish";
         case Disk2_Arrival:
             return "Disk2_Arrival";
+        case Disk2_Begin:
+            return "Disk2_Begin";
         case Disk2_Finish:
             return "Disk2_Finish";
         case Exit:

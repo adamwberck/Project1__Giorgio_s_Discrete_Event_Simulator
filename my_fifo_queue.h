@@ -9,7 +9,7 @@
 #include "job.h"
 
 struct my_fifo_queue {
-    struct job buff[100];
+    struct job buff[300];
     int read;
     int write;
     int length;

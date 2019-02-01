@@ -10,7 +10,7 @@
 
 struct my_priority_queue{
     int size;
-    struct job list[100];
+    struct job list[300];
 };
 
 

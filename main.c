@@ -23,12 +23,13 @@ FILE *log_file;
 
 int parse_int(const char *string);
 
-void pop_priority_queue(int g_time, struct job current_job, struct my_priority_queue *priority_queue,
-                        struct my_fifo_queue *cpu_queue, struct my_fifo_queue *disk1_queue,
-                        struct my_fifo_queue *disk2_queue);
+void handle_event(int g_time, struct job current_job, struct my_priority_queue *priority_queue,
+                  struct my_fifo_queue *cpu_queue, struct my_fifo_queue *disk1_queue,
+                  struct my_fifo_queue *disk2_queue);
 
 
-void pop_fifo_queue(struct my_priority_queue *priority_queue, struct my_fifo_queue *queue,enum Job_Type type);
+//void pop_fifo_queue(struct my_priority_queue *priority_queue, struct my_fifo_queue *queue,enum Job_Type type,
+//        int min,int max);
 
 int main() {
     //create queues
@@ -132,74 +133,87 @@ int main() {
         struct job current_job = remove_pq(&priority_queue);
         g_time = current_job.time;
 
-        //Pop_Priority_Queue
-        pop_priority_queue(g_time, current_job, &priority_queue, &cpu_queue, &disk1_queue, &disk2_queue);
+        //Handle Event
+        handle_event(g_time, current_job, &priority_queue, &cpu_queue, &disk1_queue, &disk2_queue);
         //Pop CPU Queue
         if (!is_empty_fq(&cpu_queue) && cpu_idle) {
-            cpu_idle=false;
-            pop_fifo_queue(&priority_queue, &cpu_queue,CPU_Finish);
+            struct job arrival = remove_fq(&cpu_queue);
+            struct job cpu_job = create_job(arrival.name,g_time,CPU_Begin);
+            add_pq(&priority_queue,cpu_job);
         }
         //Pop Disk1 Queue
         if (!is_empty_fq(&disk1_queue) && disk1_idle) {
-            disk1_idle=false;
-            pop_fifo_queue(&priority_queue, &disk1_queue,Disk1_Finish);
+            struct job arrival = remove_fq(&disk1_queue);
+            struct job disk_job = create_job(arrival.name,g_time,Disk1_Begin);
+            add_pq(&priority_queue,disk_job);
         }
         //Pop Disk2 Queue
         if (!is_empty_fq(&disk2_queue) && disk2_idle) {
-            disk2_idle=false;
-            pop_fifo_queue(&priority_queue, &disk2_queue,Disk2_Finish);
+            struct job arrival = remove_fq(&disk2_queue);
+            struct job disk_job = create_job(arrival.name,g_time,Disk2_Begin);
+            add_pq(&priority_queue,disk_job);
         }
     }
-    return 0;
+    return -1;
 }
-
-void pop_fifo_queue(struct my_priority_queue *priority_queue, struct my_fifo_queue *queue,enum Job_Type type) {
+/*
+void pop_fifo_queue(struct my_priority_queue *priority_queue, struct my_fifo_queue *queue,enum Job_Type type,
+        int min,int max) {
 
 
     struct job fifo_job = remove_fq(queue);
 
 
     char *type_str = type_string(fifo_job.type);
-    fprintf(log_file,"%s %s %d\n",fifo_job.name,type_str,fifo_job.time);
+    //fprintf(log_file,"%s %s %d\n",fifo_job.name,type_str,fifo_job.time);
 
-    int rand = my_random(CPU_MIN, CPU_MAX);
+    int rand = my_random(min, max);
     int time = fifo_job.time += rand;
     fifo_job = create_job(fifo_job.name, time, type);
     add_pq(priority_queue, fifo_job);
 }
+*/
 
 
-void pop_priority_queue(int g_time, struct job current_job, struct my_priority_queue *priority_queue,
-                        struct my_fifo_queue *cpu_queue, struct my_fifo_queue *disk1_queue,
-                        struct my_fifo_queue *disk2_queue){
+void handle_event(int g_time, struct job current_job, struct my_priority_queue *priority_queue,
+                  struct my_fifo_queue *cpu_queue, struct my_fifo_queue *disk1_queue,
+                  struct my_fifo_queue *disk2_queue){
     if (current_job.type == Arrival) {
-
-        //Add new job
 
         //log
         char *type_str = type_string(current_job.type);
         fprintf(log_file,"%s %s %d\n",current_job.name,type_str,current_job.time);
 
-        int rand = my_random(ARRIVE_MIN, ARRIVE_MAX);
+        //Add new job
         char name[15];
-        char label[4] = "Job";
-        sprintf(name, "%s%d", label, job_count++);
+        sprintf(name, "%s%d", "Job", job_count++);
+
+        int rand = my_random(ARRIVE_MIN, ARRIVE_MAX);
         struct job new_job = create_job(name, g_time + rand, Arrival);
         add_pq(priority_queue,new_job);
 
-        //Arrival
-        struct job arrival_job = create_job(current_job.name, current_job.time, CPU_Begin);
-        add_pq(priority_queue, arrival_job);
-        printf("PQ Arrive\n");
+        //Arrival add job to cpu queue
+        add_fq(cpu_queue,current_job);
+        //struct job arrival_job = create_job(current_job.name, current_job.time, CPU_Begin);
+        //add_pq(priority_queue, arrival_job);
+
     } else if (current_job.type == CPU_Begin) {
+        //log
+        char *type_str = type_string(current_job.type);
+        fprintf(log_file,"%s %s %d\n",current_job.name,type_str,current_job.time);
+
+
         //Add Job to CPU queue
-        add_fq(cpu_queue, current_job);
+        //add_fq(cpu_queue, current_job);
+        cpu_idle=false;
+        int rand = my_random(CPU_MIN,CPU_MAX);
+        struct job finish_job = create_job(current_job.name,g_time+rand,CPU_Finish);
+        add_pq(priority_queue,finish_job);
         printf("PQ CPU Begin\n");
     } else if (current_job.type == CPU_Finish) {
         //log
         char *type_str = type_string(current_job.type);
         fprintf(log_file,"%s %s %d\n",current_job.name,type_str,current_job.time);
-
 
         //Free CPU and Change job to exit or to goto the disks
         cpu_idle = true;
@@ -217,30 +231,44 @@ void pop_priority_queue(int g_time, struct job current_job, struct my_priority_q
         }
         struct job disk_job = create_job(current_job.name,current_job.time,type);
         add_pq(priority_queue,disk_job);
-        printf("PQ CPU Finish\n");
     } else if (current_job.type == Disk1_Arrival) {
 
         add_fq(disk1_queue, current_job);
         printf("PQ D1 Begin\n");
+    } else if (current_job.type == Disk1_Begin) {
+        disk1_idle=false;
+        int rand = my_random(DISK1_MIN,DISK1_MAX);
+        struct job finish = create_job(current_job.name,g_time+rand,Disk1_Finish);
+        add_pq(priority_queue,finish);
     } else if (current_job.type == Disk2_Arrival) {
         add_fq(disk2_queue, current_job);
         printf("PQ D2 Begin\n");
+    } else if(current_job.type == Disk2_Begin){
+        disk1_idle=false;
+        int rand = my_random(DISK2_MIN,DISK2_MAX);
+        struct job finish = create_job(current_job.name,g_time+rand,Disk2_Finish);
+        add_pq(priority_queue,finish);
     } else if (current_job.type == Disk1_Finish || current_job.type == Disk2_Finish) {
         //log
         char *type_str = type_string(current_job.type);
         fprintf(log_file,"%s %s %d\n",current_job.name,type_str,current_job.time);
 
+        if(current_job.type == Disk1_Finish){
+            disk1_idle=true;
+        } else{
+            disk2_idle=true;
+        }
 
-        disk1_idle = true;
-        struct job d_job = create_job(current_job.name,current_job.time,CPU_Begin);
+        struct job d_job = create_job(current_job.name,current_job.time,Arrival);
         add_pq(priority_queue,d_job);
         printf("PQ Disk Finish\n");
     } else if (current_job.type == Exit) {
-        char *type_str = type_string(current_job.type);
-        fprintf(log_file,"%s %s %d\n",current_job.name,type_str,current_job.time);
+        //char *type_str = type_string(current_job.type);
+        //fprintf(log_file,"%s %s %d\n",current_job.name,type_str,current_job.time);
         printf("PQ Job Exit\n");
     } else if (current_job.type == SIM_END) {
         printf("Simulation End\n");
+        fclose(log_file);
         exit(0);
     }
 }
