@@ -21,6 +21,7 @@ struct job{
     char name[15];
 };
 
+char *type_string(enum Job_Type type);
 
 struct job create_job(char name[],int time,enum Job_Type type);
 
