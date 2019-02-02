@@ -8,9 +8,11 @@
 
 #include "job.h"
 
+#define LENGTH 2000
+
 struct my_priority_queue{
     int size;
-    struct job list[300];
+    struct job list[LENGTH];
 };
 
 

@@ -17,6 +17,8 @@ char *type_string(enum Job_Type type){
     switch (type){
         case Arrival:
             return "Arrival";
+        case Continue:
+            return "Continue";
         case CPU_Begin:
             return "CPU_Begin";
         case CPU_Finish:

@@ -20,6 +20,24 @@ bool disk2_idle = true;
 int job_count=1;
 FILE *log_file;
 
+//stats
+int pq_size  = 0;
+int pq_max = 2;
+
+int cpu_size = 0;
+int cpu_max = 0;
+int cpu_busy=0;
+int cpu_complete=0;
+
+int d1_size = 0;
+int d1_max = 0;
+int d1_busy=0;
+int d1_complete=0;
+
+int d2_size = 0;
+int d2_max = 0;
+int d2_busy=0;
+int d2_complete=0;
 
 int parse_int(const char *string);
 
@@ -30,6 +48,8 @@ void handle_event(int g_time, struct job current_job, struct my_priority_queue *
 
 //void pop_fifo_queue(struct my_priority_queue *priority_queue, struct my_fifo_queue *queue,enum Job_Type type,
 //        int min,int max);
+
+void log_constants(const char *buf, int number);
 
 int main() {
     //create queues
@@ -70,7 +90,85 @@ int main() {
         //parse num
         int number = parse_int(num);
 
-        if(strstr(buf,"SEED")){
+        log_constants(buf, number);
+    }
+    fclose(read_file);
+    init_random(SEED);
+
+    int g_time = INIT_TIME;
+
+    struct job job1 = create_job("Job1",0,Arrival);
+    job_count++;
+    add_pq(&priority_queue,job1);
+    struct job endSim = create_job("END SIM",FIN_TIME,SIM_END);
+    add_pq(&priority_queue,endSim);
+
+
+
+
+
+    //main loop
+    while(!is_empty_pq(&priority_queue)) {
+
+
+        //Pop Priority Queue
+        struct job current_job = remove_pq(&priority_queue);
+
+
+        //stats
+        //sizes avg & max
+        //busy/total_time
+        //response time
+        //through put
+
+        int dif_time =  current_job.time-g_time;
+        pq_size += dif_time*priority_queue.size;
+        pq_max = pq_max > priority_queue.size ? pq_max : priority_queue.size;
+
+        cpu_size += dif_time*cpu_queue.size;
+        cpu_max = cpu_max > cpu_queue.size ? cpu_max : cpu_queue.size;
+        cpu_busy += cpu_idle ? 0 : dif_time;
+
+        d1_size += dif_time*disk1_queue.size;
+        d1_max = d1_max > disk1_queue.size ? d1_max : disk1_queue.size;
+        d1_busy += disk1_idle ? 0 : dif_time;
+
+        d2_size += dif_time*disk2_queue.size;
+        d2_max = d2_max > disk2_queue.size ? d2_max : disk2_queue.size;
+        d2_busy += disk2_idle ? 0 : dif_time;
+
+        g_time = current_job.time;
+
+        //log
+        char *type_str = type_string(current_job.type);
+        fprintf(log_file,"%s %s %d\n",current_job.name,type_str,current_job.time);
+
+        //Handle Event
+        handle_event(g_time, current_job, &priority_queue, &cpu_queue, &disk1_queue, &disk2_queue);
+        //Process CPU
+        if (!is_empty_fq(&cpu_queue) && cpu_idle) {
+            struct job arrival = remove_fq(&cpu_queue);
+            struct job cpu_job = create_job(arrival.name,g_time,CPU_Begin);
+            add_pq(&priority_queue,cpu_job);
+        }
+        //Process Disk1
+        if (!is_empty_fq(&disk1_queue) && disk1_idle) {
+            struct job arrival = remove_fq(&disk1_queue);
+            struct job disk_job = create_job(arrival.name,g_time,Disk1_Begin);
+            add_pq(&priority_queue,disk_job);
+        }
+        //Process Disk2
+        if (!is_empty_fq(&disk2_queue) && disk2_idle) {
+            struct job arrival = remove_fq(&disk2_queue);
+            struct job disk_job = create_job(arrival.name,g_time,Disk2_Begin);
+            add_pq(&priority_queue,disk_job);
+        }
+    }
+    return -1;
+}
+
+void log_constants(const char *buf, int number) {
+    if(strstr(buf, "SEED")){
             SEED = (unsigned int) number;
             fprintf(log_file,"SEED %d;\n",SEED);
         } else if(strstr(buf,"INIT_TIME")){
@@ -107,123 +205,41 @@ int main() {
             DISK2_MAX = number;
             fprintf(log_file,"DISK2_MAX %d;\n",DISK2_MAX);
         }
-    }
-    fclose(read_file);
-
-    init_random(SEED);
-    int g_time = INIT_TIME;
-
-
-
-
-
-
-    struct job job1 = create_job("Job1",0,Arrival);
-    job_count++;
-    add_pq(&priority_queue,job1);
-    struct job endSim = create_job("END SIM",FIN_TIME,SIM_END);
-    add_pq(&priority_queue,endSim);
-
-
-
-
-    //main loop
-    while(!is_empty_pq(&priority_queue)) {
-        //Pop Priority Queue
-        struct job current_job = remove_pq(&priority_queue);
-        g_time = current_job.time;
-
-        //Handle Event
-        handle_event(g_time, current_job, &priority_queue, &cpu_queue, &disk1_queue, &disk2_queue);
-        //Pop CPU Queue
-        if (!is_empty_fq(&cpu_queue) && cpu_idle) {
-            struct job arrival = remove_fq(&cpu_queue);
-            struct job cpu_job = create_job(arrival.name,g_time,CPU_Begin);
-            add_pq(&priority_queue,cpu_job);
-        }
-        //Pop Disk1 Queue
-        if (!is_empty_fq(&disk1_queue) && disk1_idle) {
-            struct job arrival = remove_fq(&disk1_queue);
-            struct job disk_job = create_job(arrival.name,g_time,Disk1_Begin);
-            add_pq(&priority_queue,disk_job);
-        }
-        //Pop Disk2 Queue
-        if (!is_empty_fq(&disk2_queue) && disk2_idle) {
-            struct job arrival = remove_fq(&disk2_queue);
-            struct job disk_job = create_job(arrival.name,g_time,Disk2_Begin);
-            add_pq(&priority_queue,disk_job);
-        }
-    }
-    return -1;
 }
-/*
-void pop_fifo_queue(struct my_priority_queue *priority_queue, struct my_fifo_queue *queue,enum Job_Type type,
-        int min,int max) {
-
-
-    struct job fifo_job = remove_fq(queue);
-
-
-    char *type_str = type_string(fifo_job.type);
-    //fprintf(log_file,"%s %s %d\n",fifo_job.name,type_str,fifo_job.time);
-
-    int rand = my_random(min, max);
-    int time = fifo_job.time += rand;
-    fifo_job = create_job(fifo_job.name, time, type);
-    add_pq(priority_queue, fifo_job);
-}
-*/
 
 
 void handle_event(int g_time, struct job current_job, struct my_priority_queue *priority_queue,
                   struct my_fifo_queue *cpu_queue, struct my_fifo_queue *disk1_queue,
                   struct my_fifo_queue *disk2_queue){
-    if (current_job.type == Arrival) {
-
-        //log
-        char *type_str = type_string(current_job.type);
-        fprintf(log_file,"%s %s %d\n",current_job.name,type_str,current_job.time);
+    if (current_job.type == Arrival || current_job.type == Continue) {
+        //Add job to cpu queue
+        add_fq(cpu_queue,current_job);
 
         //Add new job
-        char name[15];
-        sprintf(name, "%s%d", "Job", job_count++);
-
-        int rand = my_random(ARRIVE_MIN, ARRIVE_MAX);
-        struct job new_job = create_job(name, g_time + rand, Arrival);
-        add_pq(priority_queue,new_job);
-
-        //Arrival add job to cpu queue
-        add_fq(cpu_queue,current_job);
-        //struct job arrival_job = create_job(current_job.name, current_job.time, CPU_Begin);
-        //add_pq(priority_queue, arrival_job);
+        if(current_job.type == Arrival) {
+            char name[15];
+            sprintf(name, "%s%d", "Job", job_count++);
+            int rand = my_random(ARRIVE_MIN, ARRIVE_MAX);
+            struct job new_job = create_job(name, g_time + rand, Arrival);
+            add_pq(priority_queue, new_job);
+        }
 
     } else if (current_job.type == CPU_Begin) {
-        //log
-        char *type_str = type_string(current_job.type);
-        fprintf(log_file,"%s %s %d\n",current_job.name,type_str,current_job.time);
-
-
-        //Add Job to CPU queue
-        //add_fq(cpu_queue, current_job);
         cpu_idle=false;
         int rand = my_random(CPU_MIN,CPU_MAX);
         struct job finish_job = create_job(current_job.name,g_time+rand,CPU_Finish);
         add_pq(priority_queue,finish_job);
-        printf("PQ CPU Begin\n");
     } else if (current_job.type == CPU_Finish) {
-        //log
-        char *type_str = type_string(current_job.type);
-        fprintf(log_file,"%s %s %d\n",current_job.name,type_str,current_job.time);
-
         //Free CPU and Change job to exit or to goto the disks
+        cpu_complete++;
         cpu_idle = true;
         enum Job_Type type;
         //check if you should quit
         if(chance(QUIT_PROB)){
             type = Exit;
-        } else if (size_fq(*disk1_queue) < size_fq(*disk2_queue)) {
+        } else if (disk1_queue->size < disk2_queue->size) {
             type = Disk1_Arrival;
-        } else if (size_fq(*disk1_queue) > size_fq(*disk2_queue)) {
+        } else if (disk1_queue->size >disk2_queue->size) {
             type = Disk2_Arrival;
         } else {
             int r = my_random(0, 2);
@@ -232,9 +248,7 @@ void handle_event(int g_time, struct job current_job, struct my_priority_queue *
         struct job disk_job = create_job(current_job.name,current_job.time,type);
         add_pq(priority_queue,disk_job);
     } else if (current_job.type == Disk1_Arrival) {
-
         add_fq(disk1_queue, current_job);
-        printf("PQ D1 Begin\n");
     } else if (current_job.type == Disk1_Begin) {
         disk1_idle=false;
         int rand = my_random(DISK1_MIN,DISK1_MAX);
@@ -242,32 +256,50 @@ void handle_event(int g_time, struct job current_job, struct my_priority_queue *
         add_pq(priority_queue,finish);
     } else if (current_job.type == Disk2_Arrival) {
         add_fq(disk2_queue, current_job);
-        printf("PQ D2 Begin\n");
     } else if(current_job.type == Disk2_Begin){
-        disk1_idle=false;
+        disk2_idle=false;
         int rand = my_random(DISK2_MIN,DISK2_MAX);
         struct job finish = create_job(current_job.name,g_time+rand,Disk2_Finish);
         add_pq(priority_queue,finish);
     } else if (current_job.type == Disk1_Finish || current_job.type == Disk2_Finish) {
-        //log
-        char *type_str = type_string(current_job.type);
-        fprintf(log_file,"%s %s %d\n",current_job.name,type_str,current_job.time);
 
         if(current_job.type == Disk1_Finish){
             disk1_idle=true;
+            d1_complete++;
         } else{
             disk2_idle=true;
+            d2_complete++;
         }
 
-        struct job d_job = create_job(current_job.name,current_job.time,Arrival);
+        struct job d_job = create_job(current_job.name,current_job.time,Continue);
         add_pq(priority_queue,d_job);
-        printf("PQ Disk Finish\n");
     } else if (current_job.type == Exit) {
-        //char *type_str = type_string(current_job.type);
-        //fprintf(log_file,"%s %s %d\n",current_job.name,type_str,current_job.time);
-        printf("PQ Job Exit\n");
     } else if (current_job.type == SIM_END) {
-        printf("Simulation End\n");
+        printf("Simulation End\n%d Jobs\n",job_count);
+
+
+        double pq_avg_size  = (((double)pq_size)/FIN_TIME);
+
+        double cpu_avg_size  = (((double)cpu_size)/FIN_TIME);
+        double cpu_avg_busy  = (((double)cpu_busy)/FIN_TIME)*100;
+        double cpu_avg_thro  = (((double)cpu_complete)/FIN_TIME);
+
+        double d1_avg_size  = (((double)d1_size)/FIN_TIME);
+        double d1_avg_busy  = (((double)d1_busy)/FIN_TIME)*100;
+        double d1_avg_thro  = (((double)d1_complete)/FIN_TIME);
+
+        double d2_avg_size  = (((double)d2_size)/FIN_TIME);
+        double d2_avg_busy  = (((double)d2_busy)/FIN_TIME)*100;
+        double d2_avg_thro  = (((double)d2_complete)/FIN_TIME);
+
+        printf("PQ AVG_SIZE    %lf MAX   %d \n",pq_avg_size,pq_max);
+        printf("CPU AVG_SIZE   %lf MAX   %d BUSY PERCENT     %lf THROUGHPUT %lf \n",cpu_avg_size,
+                cpu_max, cpu_avg_busy, cpu_avg_thro);
+        printf("Disk1 AVG_SIZE %lf MAX   %d BUSY PERCENT     %lf THROUGHPUT %lf \n",d1_avg_size,d1_max,
+                d1_avg_busy, d1_avg_thro);
+        printf("Disk2 AVG_SIZE %lf MAX   %d BUSY PERCENT     %lf THROUGHPUT %lf \n",d2_avg_size,d2_max,d2_avg_busy,
+                d2_avg_thro);
+
         fclose(log_file);
         exit(0);
     }

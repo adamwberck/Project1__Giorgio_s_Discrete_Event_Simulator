@@ -3,6 +3,8 @@
 //
 
 #include <stdbool.h>
+#include <stdlib.h>
+#include <stdio.h>
 #include "my_priority_queue.h"
 #include "job.h"
 
@@ -13,16 +15,22 @@ struct my_priority_queue create_p_queue(){
 }
 
 
-void add_pq(struct my_priority_queue *qp, struct job jb){
+void add_pq(struct my_priority_queue *queue, struct job jb){
+    //check full
+    if(queue->size+1>LENGTH-1){
+        printf("Priority Queue OverFlow\n");
+        exit(-1);
+    }
+
     int i=0;
-    while(jb.time>qp->list[i].time && i<qp->size){
+    while(jb.time>queue->list[i].time && i<queue->size){
         i++;
     }
-    for(int j=(*qp).size;j>=i;j--) {
-        qp->list[j + 1] = qp->list[j];
+    for(int j=(*queue).size;j>=i;j--) {
+        queue->list[j + 1] = queue->list[j];
     }
-    qp->list[i]=jb;
-    qp->size++;
+    queue->list[i]=jb;
+    queue->size++;
 }
 
 struct job remove_pq(struct my_priority_queue *queue){
