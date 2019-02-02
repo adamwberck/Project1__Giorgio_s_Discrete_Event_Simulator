@@ -20,11 +20,8 @@ struct job{
     enum Job_Type type;
     char name[15];
     int cpu_arrive;
-    int cpu_complete;
     int disk1_arrive;
-    int disk1_complete;
     int disk2_arrive;
-    int disk2_complete;
 
 };
 
