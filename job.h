@@ -27,7 +27,7 @@ struct job{
 
 char *type_string(enum Job_Type type);
 
-struct job create_job(char name[],int time,enum Job_Type type);
+struct job create_job(char name[],int time,enum Job_Type type,int cpu_arrive,int disk1_arrive,int disk2_arrive);
 
 
 #endif //PROJECT1_GIORGIO_S_DISCRETE_EVENT_SIMULATOR_JOB_H

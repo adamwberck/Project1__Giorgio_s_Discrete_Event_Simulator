@@ -5,12 +5,15 @@
 #include <memory.h>
 #include "job.h"
 
-struct job create_job(char name[],int time,enum Job_Type type){
-    struct job j1;
-    j1.time = time;
-    j1.type = type;
-    stpncpy(j1.name,name,15);
-    return j1;
+struct job create_job(char name[],int time,enum Job_Type type,int cpu_arrive,int disk1_arrive,int disk2_arrive){
+    struct job j;
+    j.time = time;
+    j.type = type;
+    j.cpu_arrive = cpu_arrive;
+    j.disk1_arrive = disk1_arrive;
+    j.disk2_arrive = disk2_arrive;
+    stpncpy(j.name,name,15);
+    return j;
 }
 
 char *type_string(enum Job_Type type){
