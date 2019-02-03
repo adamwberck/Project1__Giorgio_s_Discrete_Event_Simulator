@@ -104,7 +104,7 @@ int main() {
 
     int g_time = INIT_TIME;
 
-    struct job job1 = create_job("Job1",0,Arrival,0);
+    struct job job1 = create_job("Job1",0,CPU_Arrival,0);
     job_count++;
     add_pq(&priority_queue,job1);
     struct job endSim = create_job("END SIM",FIN_TIME,SIM_END,0);
@@ -205,17 +205,17 @@ void log_constants(const char *buf, int number) {
 void handle_event(int g_time, struct job current_job, struct my_priority_queue *priority_queue,
                   struct my_fifo_queue *cpu_queue, struct my_fifo_queue *disk1_queue,
                   struct my_fifo_queue *disk2_queue){
-    if (current_job.type == Arrival || current_job.type == Continue) {
+    if (current_job.type == CPU_Arrival || current_job.type == CPU_Continue) {
         //Add job to cpu queue
         current_job.arrive = g_time;
         add_fq(cpu_queue,current_job);
 
         //Add new job
-        if(current_job.type == Arrival) {
+        if(current_job.type == CPU_Arrival) {
             char name[15];
             sprintf(name, "%s%d", "Job", job_count++);
             int rand = my_random(ARRIVE_MIN, ARRIVE_MAX);
-            struct job new_job = create_job(name, g_time + rand, Arrival,0);
+            struct job new_job = create_job(name, g_time + rand, CPU_Arrival,0);
             add_pq(priority_queue, new_job);
         }
 
@@ -271,7 +271,7 @@ void handle_event(int g_time, struct job current_job, struct my_priority_queue *
             d2_complete++;
         }
 
-        struct job d_job = create_job(current_job.name,current_job.time,Continue,0);
+        struct job d_job = create_job(current_job.name,current_job.time,CPU_Continue,0);
         add_pq(priority_queue,d_job);
     } else if (current_job.type == Exit) {
     } else if (current_job.type == SIM_END) {

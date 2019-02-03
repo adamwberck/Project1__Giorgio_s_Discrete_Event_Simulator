@@ -19,10 +19,10 @@ struct job create_job(char name[],int time,enum Job_Type type,int arrive){
 
 char *type_string(enum Job_Type type){
     switch (type){
-        case Arrival:
-            return "Arrival";
-        case Continue:
-            return "Continue";
+        case CPU_Arrival:
+            return "CPU_Arrival";
+        case CPU_Continue:
+            return "CPU_Continue";
         case CPU_Begin:
             return "CPU_Begin";
         case CPU_Finish:

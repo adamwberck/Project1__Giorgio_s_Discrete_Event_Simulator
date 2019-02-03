@@ -36,8 +36,5 @@ struct job remove_fq(struct my_fifo_queue *queue){
     struct job j = queue->buff[queue->read];
     queue->read = (queue->read+1)%LENGTH;
     queue->size--;
-    if(queue->size>1600){
-        printf("oh\n");
-    }
     return j;
 }
