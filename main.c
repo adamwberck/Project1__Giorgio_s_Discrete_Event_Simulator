@@ -51,6 +51,13 @@ void handle_event(int g_time, struct job current_job, struct my_priority_queue *
 
 void log_constants(const char *buf, int number);
 
+void handle_server(int g_time, struct my_priority_queue *priority_queue,struct my_fifo_queue *fifo_queue,
+        enum Job_Type type);
+
+void record_stats(struct my_fifo_queue *queue, int dif_time,int *size,int *max,int *busy,bool idle);
+
+void write_stats();
+
 int main() {
     //create queues
     struct my_priority_queue priority_queue = create_p_queue();
@@ -109,64 +116,49 @@ int main() {
 
     //main loop
     while(!is_empty_pq(&priority_queue)) {
-
-
         //Pop Priority Queue
         struct job current_job = remove_pq(&priority_queue);
 
-
         //stats
-        //sizes avg & max
-        //busy/total_time
-        //response time
-        //through put
-
         int dif_time =  current_job.time-g_time;
         pq_size += dif_time*priority_queue.size;
         pq_max = pq_max > priority_queue.size ? pq_max : priority_queue.size;
-
-        cpu_size += dif_time*cpu_queue.size;
-        cpu_max = cpu_max > cpu_queue.size ? cpu_max : cpu_queue.size;
-        cpu_busy += cpu_idle ? 0 : dif_time;
-
-        d1_size += dif_time*disk1_queue.size;
-        d1_max = d1_max > disk1_queue.size ? d1_max : disk1_queue.size;
-        d1_busy += disk1_idle ? 0 : dif_time;
-
-        d2_size += dif_time*disk2_queue.size;
-        d2_max = d2_max > disk2_queue.size ? d2_max : disk2_queue.size;
-        d2_busy += disk2_idle ? 0 : dif_time;
-
-
+        record_stats(&cpu_queue, dif_time,&cpu_size,&cpu_max,&cpu_busy,cpu_idle);
+        record_stats(&disk1_queue, dif_time,&d1_size,&d1_max,&d1_busy,disk1_idle);
+        record_stats(&disk2_queue, dif_time,&d2_size,&d2_max,&d2_busy,disk2_idle);
         //log
-        char *type_str = type_string(current_job.type);
-        fprintf(log_file,"%s %s %d\n",current_job.name,type_str,current_job.time);
+        fprintf(log_file,"%s %s %d\n",current_job.name,type_string(current_job.type),current_job.time);
 
         //Handle Event
-
         g_time = current_job.time;
         handle_event(g_time, current_job, &priority_queue, &cpu_queue, &disk1_queue, &disk2_queue);
         //Process CPU
         if (!is_empty_fq(&cpu_queue) && cpu_idle) {
-            struct job arrival = remove_fq(&cpu_queue);
-            struct job cpu_job = create_job(arrival.name,g_time,CPU_Begin,
-                    arrival.arrive);
-            add_pq(&priority_queue,cpu_job);
+            handle_server(g_time, &priority_queue, &cpu_queue,CPU_Begin);
         }
         //Process Disk1
         if (!is_empty_fq(&disk1_queue) && disk1_idle) {
-            struct job arrival = remove_fq(&disk1_queue);
-            struct job disk_job = create_job(arrival.name,g_time,Disk1_Begin,arrival.arrive);
-            add_pq(&priority_queue,disk_job);
+            handle_server(g_time,&priority_queue,&disk1_queue,Disk1_Begin);
         }
         //Process Disk2
         if (!is_empty_fq(&disk2_queue) && disk2_idle) {
-            struct job arrival = remove_fq(&disk2_queue);
-            struct job disk_job = create_job(arrival.name,g_time,Disk2_Begin,arrival.arrive);
-            add_pq(&priority_queue,disk_job);
+            handle_server(g_time,&priority_queue,&disk2_queue,Disk2_Begin);
         }
     }
     return -1;
+}
+
+void record_stats(struct my_fifo_queue *queue, int dif_time,int *size, int *max, int *busy, bool idle) {
+    *size += dif_time * (*queue).size;
+    *max = *max > (*queue).size ? *max : (*queue).size;
+    *busy += idle ? 0 : dif_time;
+}
+
+void handle_server(int g_time, struct my_priority_queue *priority_queue, struct my_fifo_queue *fifo_queue,
+        enum Job_Type type) {
+    struct job pop_job = remove_fq(fifo_queue);
+    struct job new_job = create_job(pop_job.name,g_time,type, pop_job.arrive);
+    add_pq(priority_queue, new_job);
 }
 
 void log_constants(const char *buf, int number) {
@@ -284,36 +276,39 @@ void handle_event(int g_time, struct job current_job, struct my_priority_queue *
     } else if (current_job.type == Exit) {
     } else if (current_job.type == SIM_END) {
         printf("Simulation End\n%d Jobs\n",job_count);
+        write_stats();
 
-
-        double pq_avg_size  = (((double)pq_size)/FIN_TIME);
-
-        double cpu_avg_size  = (((double)cpu_size)/FIN_TIME);
-        double cpu_avg_busy  = (((double)cpu_busy)/FIN_TIME)*100;
-        double cpu_avg_thro  = (((double)cpu_complete)/FIN_TIME);
-        double cpu_rtime = (((double)cpu_time)/cpu_complete);
-
-        double d1_avg_size  = (((double)d1_size)/FIN_TIME);
-        double d1_avg_busy  = (((double)d1_busy)/FIN_TIME)*100;
-        double d1_avg_thro  = (((double)d1_complete)/FIN_TIME);
-        double d1_rtime = (((double)d1_time)/d1_complete);
-
-        double d2_avg_size  = (((double)d2_size)/FIN_TIME);
-        double d2_avg_busy  = (((double)d2_busy)/FIN_TIME)*100;
-        double d2_avg_thro  = (((double)d2_complete)/FIN_TIME);
-        double d2_rtime = (((double)d2_time)/d2_complete);
-
-        stats_file = fopen("stats.txt","w");
-        fprintf(stats_file,"PQ AVG_SIZE    %lf MAX   %d \n",pq_avg_size,pq_max);
-        fprintf(stats_file,"CPU AVG_SIZE   %lf MAX   %d BUSY PERCENT     %lf THROUGHPUT %lf AVG R TIME %lf \n",
-                cpu_avg_size, cpu_max, cpu_avg_busy, cpu_avg_thro,cpu_rtime);
-        fprintf(stats_file,"Disk1 AVG_SIZE %lf MAX   %d BUSY PERCENT     %lf THROUGHPUT %lf AVG R TIME %lf\n",
-                d1_avg_size,d1_max, d1_avg_busy, d1_avg_thro,d1_rtime);
-        fprintf(stats_file,"Disk2 AVG_SIZE %lf MAX   %d BUSY PERCENT     %lf THROUGHPUT %lf AVG R TIME %lf\n",
-                d2_avg_size,d2_max,d2_avg_busy, d2_avg_thro,d2_rtime);
-        fclose(log_file);
         exit(0);
     }
+}
+
+void write_stats() {
+    double pq_avg_size  = (((double)pq_size) / FIN_TIME);
+
+    double cpu_avg_size  = (((double)cpu_size)/FIN_TIME);
+    double cpu_avg_busy  = (((double)cpu_busy)/FIN_TIME)*100;
+    double cpu_avg_thro  = (((double)cpu_complete)/FIN_TIME);
+    double cpu_rtime = (((double)cpu_time)/cpu_complete);
+
+    double d1_avg_size  = (((double)d1_size)/FIN_TIME);
+    double d1_avg_busy  = (((double)d1_busy)/FIN_TIME)*100;
+    double d1_avg_thro  = (((double)d1_complete)/FIN_TIME);
+    double d1_rtime = (((double)d1_time)/d1_complete);
+
+    double d2_avg_size  = (((double)d2_size)/FIN_TIME);
+    double d2_avg_busy  = (((double)d2_busy)/FIN_TIME)*100;
+    double d2_avg_thro  = (((double)d2_complete)/FIN_TIME);
+    double d2_rtime = (((double)d2_time)/d2_complete);
+
+    stats_file = fopen("stats.txt","w");
+    fprintf(stats_file,"PQ AVG_SIZE    %.4f   MAX    %2d \n",pq_avg_size,pq_max);
+    fprintf(stats_file,"CPU AVG_SIZE   %.4f   MAX    %2d BUSY PERCENT     %.3f%% THROUGHPUT %.4f AVG R TIME %.4f \n",
+                cpu_avg_size, cpu_max, cpu_avg_busy, cpu_avg_thro,cpu_rtime);
+    fprintf(stats_file,"Disk1 AVG_SIZE %.4f MAX   %2d BUSY PERCENT     %.3f%% THROUGHPUT %.4f AVG R TIME %.4f\n",
+                d1_avg_size,d1_max, d1_avg_busy, d1_avg_thro,d1_rtime);
+    fprintf(stats_file,"Disk2 AVG_SIZE %.4f MAX   %2d BUSY PERCENT     %.3f%% THROUGHPUT %.4f AVG R TIME %.4f\n",
+                d2_avg_size,d2_max,d2_avg_busy, d2_avg_thro,d2_rtime);
+    fclose(log_file);
 }
 
 int parse_int(const char *string) {

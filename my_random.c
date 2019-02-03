@@ -25,5 +25,6 @@ int my_random(int low, int high){//low inclusive high exclusive
 }
 
 bool chance(double p){
-    return my_random(1,1001)/1000.0 < p;
+    double r = my_random(1,1001)/1000.0;
+    return r <= p;
 }
