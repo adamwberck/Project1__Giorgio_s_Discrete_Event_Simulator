@@ -1,5 +1,5 @@
 //
-// Created by mandr on 2019-02-03.
+// Created by Adam Berck on 2019-02-03.
 //
 
 #ifndef PROJECT1_GIORGIO_S_DISCRETE_EVENT_SIMULATOR_TEST_H

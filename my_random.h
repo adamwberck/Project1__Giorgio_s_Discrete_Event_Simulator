@@ -1,5 +1,5 @@
 //
-// Created by mandr on 2019-01-30.
+// Created by Adam Berck on 2019-01-30.
 //
 
 #ifndef PROJECT1_GIORGIO_S_DISCRETE_EVENT_SIMULATOR_MY_RANDOM_H
