@@ -1,0 +1,9 @@
+//
+// Created by mandr on 2019-02-03.
+//
+
+#ifndef PROJECT1_GIORGIO_S_DISCRETE_EVENT_SIMULATOR_TEST_H
+#define PROJECT1_GIORGIO_S_DISCRETE_EVENT_SIMULATOR_TEST_H
+int test_of_pq();
+int test_of_my_random();
+#endif //PROJECT1_GIORGIO_S_DISCRETE_EVENT_SIMULATOR_TEST_H

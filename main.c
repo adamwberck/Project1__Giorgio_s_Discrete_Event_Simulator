@@ -7,6 +7,7 @@
 #include "my_fifo_queue.h"
 #include "my_priority_queue.h"
 #include "job.h"
+#include "test.h"
 
 unsigned int SEED;
 int INIT_TIME, FIN_TIME, ARRIVE_MIN, ARRIVE_MAX, CPU_MIN, CPU_MAX, DISK1_MIN, DISK1_MAX, DISK2_MIN, DISK2_MAX;
@@ -60,6 +61,8 @@ void write_stats();
 
 int main() {
     //create queues
+
+
     struct my_priority_queue priority_queue = create_p_queue();
     struct my_fifo_queue cpu_queue = create_fifo_queue();
     struct my_fifo_queue disk1_queue = create_fifo_queue();
@@ -67,7 +70,6 @@ int main() {
 
     FILE *read_file;
     char buf[1000];
-
     read_file=fopen("config.txt","r");
     if (!read_file) {
         printf("Could not find config.txt\n");
@@ -75,7 +77,6 @@ int main() {
     }
     //setup log file
     log_file = fopen("log.txt","w+");
-
     //Read Config File
     while (fgets(buf,1000, read_file)!=NULL) {
         int i=0;
@@ -96,7 +97,6 @@ int main() {
 
         //parse num
         int number = parse_int(num);
-
         log_constants(buf, number);
     }
     fclose(read_file);
@@ -145,7 +145,7 @@ int main() {
             handle_server(g_time,&priority_queue,&disk2_queue,Disk2_Begin);
         }
     }
-    return -1;
+    return 1;
 }
 
 void record_stats(struct my_fifo_queue *queue, int dif_time,int *size, int *max, int *busy, bool idle) {
